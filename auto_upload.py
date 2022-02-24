@@ -289,6 +289,9 @@ def identify_type_and_basic_info(full_path):
                 for file in files:
                     if (file.endswith('.mkv') or file.endswith('.mp4')) and 'sample' not in file.lower():
                         torrent_info['raw_video_file'] = file
+                        break
+                if 'raw_video_file' in torrent_info:
+                    break
         else:
             for individual_file in sorted(glob.glob(f"{torrent_info['upload_media']}/*")):
                 found = False  # this is used to break out of the double nested loop
