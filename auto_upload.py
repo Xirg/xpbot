@@ -59,7 +59,7 @@ load_dotenv(f'{working_folder}/config.env')
 acronym_to_tracker = {
     "blu": "blutopia", "bhd": "beyond-hd", "r4e": "racing4everyone",
     "acm": "asiancinema", "ath": "aither", "telly": "telly",
-    "ntelogo": "ntelogo", "ufhd": "uncutflixhd"
+    "ntelogo": "ntelogo", "ufhd": "uncutflixhd", "dby": "dby"
 }
 
 # Now assign some of the values we get from 'config.env' to global variables we use later
@@ -72,7 +72,9 @@ api_keys_dict = {
     'telly_api_key': os.getenv('TELLY_API_KEY'),
     'ntelogo_api_key': os.getenv('NTELOGO_API_KEY'),
     'ufhd_api_key': os.getenv('UFHD_API_KEY'),
-    'tmdb_api_key': os.getenv('TMDB_API_KEY')
+    'tmdb_api_key': os.getenv('TMDB_API_KEY'),
+    'dby_api_key': os.getenv('DBY_API_KEY')
+
 }
 # Make sure the TMDB API is provided
 try:
@@ -81,12 +83,6 @@ try:
 except AssertionError as err:  # Log AssertionError in the logfile and quit here
     logging.exception("TMDB API Key is required")
     raise err
-
-# Import 'auto_mode' status
-if str(os.getenv('auto_mode')).lower() not in ['true', 'false']:
-    logging.critical('auto_mode is not set to true/false in config.env')
-    raise AssertionError("set 'auto_mode' equal to true/false in config.env")
-auto_mode = str(os.getenv('auto_mode')).lower()
 
 # import discord webhook url (if exists)
 if len(os.getenv('DISCORD_WEBHOOK')) != 0:
@@ -101,7 +97,7 @@ is_live_on_site = str(os.getenv('live')).lower()
 # Setup args
 parser = argparse.ArgumentParser()
 # Commonly used args:
-parser.add_argument('-t', '--trackers', nargs='*', required=True, help="Tracker(s) to upload to. Space-separates if multiple (no commas)")
+parser.add_argument('-t', '--trackers', nargs='*', help="Tracker(s) to upload to. Space-separates if multiple (no commas)")
 parser.add_argument('-p', '--path', nargs='*', required=True, help="Use this to provide path(s) to file/folder")
 parser.add_argument('-tmdb', nargs=1, help="Use this to manually provide the TMDB ID")
 parser.add_argument('-imdb', nargs=1, help="Use this to manually provide the IMDB ID")
@@ -115,6 +111,7 @@ parser.add_argument('-batch', action='store_true', help="Pass this arg if you wa
 parser.add_argument('-disc', action='store_true', help="If you are uploading a raw dvd/bluray disc you need to pass this arg")
 parser.add_argument('-e', '--edition', nargs='*', help="Manually provide an 'edition' (e.g. Criterion Collection, Extended, Remastered, etc)")
 parser.add_argument('-nfo', nargs=1, help="Use this to provide the path to an nfo file you want to upload")
+parser.add_argument('-auto', action='store_true', help="Enable automode")
 
 # args for Internal uploads
 parser.add_argument('-internal', action='store_true', help="(Internal) Used to mark an upload as 'Internal'", default=argparse.SUPPRESS)
@@ -123,8 +120,20 @@ parser.add_argument('-featured', action='store_true', help="(Internal) feature a
 parser.add_argument('-doubleup', action='store_true', help="(Internal) Give a new upload 'double up' status", default=argparse.SUPPRESS)
 parser.add_argument('-sticky', action='store_true', help="(Internal) Pin the new upload", default=argparse.SUPPRESS)
 
+
 args = parser.parse_args()
 
+if not args.anon:
+    args.anon=True
+
+# Import 'auto_mode' status
+if args.auto is False:
+    if str(os.getenv('auto_mode')).lower() not in ['true', 'false']:
+        logging.critical('auto_mode is not set to true/false in config.env')
+        raise AssertionError("set 'auto_mode' equal to true/false in config.env")
+    auto_mode = str(os.getenv('auto_mode')).lower()
+else:
+    auto_mode = "true"
 
 def delete_leftover_files():
     # Used to remove temporary files (mediainfo.txt, description.txt, screenshots) from the previous upload
@@ -275,8 +284,11 @@ def identify_type_and_basic_info(full_path):
             largest_playlist = list(dict_of_playlist_length_size.keys())[list(dict_of_playlist_length_size.values()).index(largest_playlist_value)]
             # print(largest_playlist)
             torrent_info["largest_playlist"] = largest_playlist
-
-
+        elif '.boxset.' in args.path.lower():
+            for _, _, files in os.walk(torrent_info['upload_media']):
+                for file in files:
+                    if (file.endswith('.mkv') or file.endswith('.mp4')) and 'sample' not in file.lower():
+                        torrent_info['raw_video_file'] = file
         else:
             for individual_file in sorted(glob.glob(f"{torrent_info['upload_media']}/*")):
                 found = False  # this is used to break out of the double nested loop
@@ -753,19 +765,21 @@ def identify_miscellaneous_details():
     # We also search for "editions" here, this info is typically made known in the filename so we can use some simple regex to extract it (e.g. extended, Criterion, directors, etc)
 
     # ------ Specific Source info ------ #
+
     if "source_type" not in torrent_info:
         match_source = re.search(r'(?P<bluray_remux>.*blu(.ray|ray).*remux.*)|'
-                                 r'(?P<bluray_disc>.*blu(.ray|ray)((?!x(264|265)|h.(265|264)).)*$)|'
-                                 r'(?P<webrip>.*web(.rip|rip).*)|'
-                                 r'(?P<webdl>.*web(.dl|dl|).*)|'
-                                 r'(?P<bluray_encode>.*blu(.ray|ray).*|x(264|265)|h.(265|264))|'
-                                 r'(?P<dvd>HD(.DVD|DVD)|.*DVD.*)|'
-                                 r'(?P<hdtv>.*HDTV.*)', torrent_info["raw_file_name"], re.IGNORECASE)
+                                r'(?P<bluray_disc>.*blu(.ray|ray)((?!x(264|265)|h.(265|264)).)*$)|'
+                                r'(?P<webrip>.*web(.rip|rip).*)|'
+                                r'(?P<webdl>.*web(.dl|dl|).*)|'
+                                r'(?P<bluray_encode>.*blu(.ray|ray).*|x(264|265)|h.(265|264))|'
+                                r'(?P<dvd>HD(.DVD|DVD)|.*DVD.*)|'
+                                r'(?P<hdtv>.*HDTV.*)', torrent_info["raw_file_name"], re.IGNORECASE)
         if match_source is not None:
             for source_type in ["bluray_disc", "bluray_remux", "bluray_encode", "webdl", "webrip", "dvd", "hdtv"]:
                 if match_source.group(source_type) is not None:
                     # add it directly to the torrent_info dict
                     torrent_info["source_type"] = source_type
+
 
         # Well firstly if we got this far with auto_mode enabled that means we've somehow figured out the 'parent' source but now can't figure out its 'final form'
         # If auto_mode is disabled we can prompt the user
@@ -819,6 +833,12 @@ def identify_miscellaneous_details():
     if match_repack is not None:
         torrent_info["repack"] = match_repack.group()
         logging.info(f'Used Regex to extract: [bold]{match_repack.group()}[/bold] from the filename')
+
+    # repacks
+    match_language = re.search(r'NORDiC|DANiSH', torrent_info["raw_file_name"], re.IGNORECASE)
+    if match_language is not None:
+        torrent_info["language"] = match_language.group()
+        logging.info(f'Used Regex to extract: [bold]{match_language.group()}[/bold] from the filename')
 
     # --- Bluray disc type --- #
     if torrent_info["source_type"] == "bluray_disc":
@@ -1412,9 +1432,9 @@ def choose_right_tracker_keys():
                 tracker_settings[optional_key] = ",".join(upload_these_tags_list)
 
         # TODO figure out why .nfo uploads fail on BHD & don't display on BLU...
-        # if optional_key in ["nfo_file", "nfo"] and "nfo_file" in torrent_info:
+        if optional_key in ["nfo_file", "nfo"] and "nfo_file" in torrent_info:
         #     # So far
-        #     tracker_settings[optional_key] = torrent_info["nfo_file"]
+             tracker_settings[optional_key] = torrent_info["nfo_file"]
 
         if optional_key == 'sd' and "sd" in torrent_info:
             tracker_settings[optional_key] = 1
@@ -1433,6 +1453,89 @@ def upload_to_site(upload_to, tracker_api_key):
     payload = {}
     files = []
     display_files = {}
+
+# Category
+    keywords = {30: [".boxset"],2: [".remux"],1: [".brdisk", ".br-disk"],19: [".4k", ".uhd", ".2160p"],4: [".webdl", ".web-dl"],5: [".webrip", ".web-rip"],3: [".encode"],6: [".hdtv"],23: [".3d"]}
+    parse_me = torrent_info["raw_video_file"] if "raw_video_file" in torrent_info else torrent_info["upload_media"]
+    for key in keywords:
+        for word in keywords[key]:
+            # Check if our keyword is in the title of our upload
+            if word in parse_me.lower():
+                tracker_settings['type_id'] = key
+                # Go out of the loop if it found a keyword
+                break
+# End
+
+# Auto add language and subs to the uploads torrent
+    lang = []
+    subs = []
+    srt_shorts = {'en': 'gb','sv': 'se','da': 'dk'}
+    languages = {'eng': 'gb','spa': 'es','dan': 'dk','nor': 'no','ger': 'de','swe': 'se','jap': 'jp','fin': 'fi','ita': 'it','nld': 'nl', 'kor': 'kr', 'isl', 'is', 'rus': 'ru'}
+    try:
+        for _, _, fls in os.walk(torrent_info["upload_media"]):
+            for file in fls:
+                if file.endswith('srt') or file.endswith('pgs'):
+                    if file[-7:-3].endswith('.') and file[-7:-4].startswith('.'):
+                        sub = file[-6:-4]
+                        for srt in srt_shorts:
+                            if sub == srt:
+                                sub = srt_shorts[srt]
+                                break
+                        if sub not in subs:
+                            subs.append(sub)
+                    else:
+                        if "gb" not in subs:
+                            subs.append("gb")
+                if file.endswith('.mkv') or file.endswith('.mp4') or file.endswith('.mov'):
+                    k = FFprobe(
+                        inputs={
+                            parse_me:None
+                        },
+                        global_options=[
+                            '-v',
+                            'quiet',
+                            '-print_format',
+                            'json',
+                            '-select_streams a',
+                            '-show_streams'
+                        ]
+                    ).run(stdout=subprocess.PIPE)
+                    for l in json.loads(k[0])['streams']:
+                        if 'language' in l['tags']:
+                            for la in languages:
+                                if l['tags']['language'] == la:
+                                    if languages[la] not in lang:
+                                        lang.append(languages[la])
+                                        break
+                    k = FFprobe(
+                        inputs={
+                            parse_me:None
+                        },
+                        global_options=[
+                            '-v',
+                            'quiet',
+                            '-print_format',
+                            'json',
+                            '-select_streams s',
+                            '-show_streams'
+                        ]
+                    ).run(stdout=subprocess.PIPE)
+                    for l in json.loads(k[0])['streams']:
+                        if 'language' in l['tags']:
+                            for la in languages:
+                                if l['tags']['language'] == la:
+                                    if languages[la] not in subs:
+                                        subs.append(languages[la])
+                                        break
+    except Exception as e:
+        logging.error(f"Error while gathering subs/langs: {e}")
+    if len(subs) > 0:
+        tracker_settings["language_subs_checkbox[]"] = subs
+        logging.info(f"Subtitles: {subs}")
+    if len(lang) > 0:
+        tracker_settings["language_checkbox[]"] = lang
+        logging.info(f"Languages: {lang}")
+# End 
 
     for key, val in tracker_settings.items():
         # First check to see if its a required or optional key
@@ -1510,8 +1613,8 @@ def upload_to_site(upload_to, tracker_api_key):
     if response.status_code == 200:
         logging.info(f"upload response for {upload_to}: {response.text.encode('utf8')}")
         # Update discord channel
-        if discord_url:
-            requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f"content='f'Upload response: **{response.text.encode('utf8')}**")
+        #if discord_url:
+        #    requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f"content='f'Upload response: **{response.text.encode('utf8')}**")
 
         if "success" in str(response.json()).lower():
             if str(response.json()["success"]).lower() == "true":
@@ -1519,6 +1622,22 @@ def upload_to_site(upload_to, tracker_api_key):
                 console.print(f"\n :thumbsup: Successfully uploaded to {upload_to} :balloon: \n", style="bold green1 underline")
             else:
                 logging.critical("Upload to {} failed".format(upload_to))
+
+            #WATCH FOLDER
+            watch_folder = f'{working_folder}/temp_upload/'
+
+            for files in glob.iglob(os.path.join(watch_folder, '*.torrent')):
+                os.remove(files)
+
+            r = requests.get(response.json()['data'], stream=True)
+            new_torr = r.headers.get('content-disposition').split('"')[1]
+            with open(watch_folder+new_torr, "wb") as f:
+                for chunk in r.iter_content(chunk_size=4096):
+                    f.write(chunk)
+            logging.info(f"Downloaded {new_torr} to {watch_folder}")
+            console.print(f"\n :thumbsup: Successfully Downloaded  {new_torr} to {watch_folder} :balloon: \n", style="bold green1 underline")
+            #END
+
         else:
             logging.critical("Something really went wrong when uploading to {} and we didn't even get a 'success' json key".format(upload_to))
 
@@ -1550,6 +1669,9 @@ logging.info(starting_new_upload)
 
 # Set the value of args.path to a variable that we can overwrite with a path translation later (if needed)
 user_supplied_paths = args.path
+
+for path in user_supplied_paths:
+    args.title=[os.path.basename(os.path.normpath(path))]
 
 # Verify the script is in "auto_mode" and if needed map rtorrent download path to system path
 if args.reupload:
@@ -1585,10 +1707,13 @@ if args.reupload:
             logging.info(f'Translated path: {translated_path}')
 
 # If a user has supplied a discord webhook URL we can send updates to that channel
-if discord_url:
-    requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content={starting_new_upload}')
+#if discord_url:
+#    requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content={starting_new_upload}')
 
 # Verify we support the tracker specified
+if args.trackers is None:
+    args.trackers=['dby']
+    
 upload_to_trackers = []
 for tracker in args.trackers:
     if "{tracker}_api_key".format(tracker=str(tracker).lower()) in api_keys_dict:
@@ -1837,15 +1962,10 @@ for file in upload_queue:
 
             # Now open up the correct files and format all the bbcode/tags below
             with open(torrent_info["bbcode_images"], 'r') as bbcode, open(f'{working_folder}/temp_upload/description.txt', 'a') as description:
-                # First add the [center] tags, "Screenshots" header, Size tags etc etc. This only needs to be written once which is why its outside of the 'for loop' below
-                description.write(f'{bbcode_line_break}[center] ---------------------- [size=22]Screenshots[/size] ---------------------- {bbcode_line_break}{bbcode_line_break}')
-
+              
                 # Now write in the actual screenshot bbcode
                 for line in bbcode:
                     description.write(line)
-
-                # Finally append the entire thing with some shameless self promotion ;) & and the closing [/center] tags and some line breaks
-                description.write(f'{bbcode_line_break}{bbcode_line_break} Uploaded with [color=red]{"<3" if str(tracker).upper() == "BHD" else "❤"}[/color] using [url=https://github.com/ryelogheat/xpbot]XpBot[/url][/center]')
 
             # Add the finished file to the 'torrent_info' dict
             torrent_info["description"] = f'{working_folder}/temp_upload/description.txt'
@@ -1915,7 +2035,8 @@ for file in upload_queue:
                 list_dot_torrent_files = glob.glob(f"{working_folder}/temp_upload/*.torrent")
                 for dot_torrent_file in list_dot_torrent_files:
                     # Move each .torrent file we find into the directory the user specified
-                    shutil.copy(dot_torrent_file, move_locations["torrent"])
+                    # shutil.copy(dot_torrent_file, move_locations["torrent"])
+                    torrent_file=dot_torrent_file
 
             # Media files are moved instead of copied so we need to make sure they don't already exist in the path the user provides
             if move_location_key == 'media':
@@ -1925,6 +2046,10 @@ for file in upload_queue:
                 else:
                     logging.info(f"Moved {torrent_info['upload_media']} to {move_location_value}")
                     shutil.move(torrent_info["upload_media"], move_location_value)
+
+    new_torrent_file = re.escape(os.path.basename(torrent_file))
+    torrent_file = re.escape(torrent_file)
+    os.system("~/bin/rtorrent_fast_resume.pl " + move_locations["media"] + " < " + torrent_file + " > " + move_locations["torrent"] + "/" + new_torrent_file)
 
                 # Torrent Info
     torrent_info_table = Table(show_header=True, header_style="bold cyan")
