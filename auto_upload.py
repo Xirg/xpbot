@@ -1678,6 +1678,7 @@ logging.info(starting_new_upload)
 user_supplied_paths = args.path
 
 for path in user_supplied_paths:
+    #default the title to the path
     args.title=[os.path.basename(os.path.normpath(path))]
 
 # Verify the script is in "auto_mode" and if needed map rtorrent download path to system path
@@ -1717,9 +1718,9 @@ if args.reupload:
 #if discord_url:
 #    requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content={starting_new_upload}')
 
-# Verify we support the tracker specified
+# default to default_tracker if no -tracker argument provided
 if args.trackers is None:
-    args.trackers=['dby']
+    args.trackers=[str(os.getenv('default_tracker')).lower()]
     
 upload_to_trackers = []
 for tracker in args.trackers:
