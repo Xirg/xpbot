@@ -284,14 +284,6 @@ def identify_type_and_basic_info(full_path):
             largest_playlist = list(dict_of_playlist_length_size.keys())[list(dict_of_playlist_length_size.values()).index(largest_playlist_value)]
             # print(largest_playlist)
             torrent_info["largest_playlist"] = largest_playlist
-        elif '.boxset.' in args.path.lower():
-            for _, _, files in os.walk(torrent_info['upload_media']):
-                for file in files:
-                    if (file.endswith('.mkv') or file.endswith('.mp4')) and 'sample' not in file.lower():
-                        torrent_info['raw_video_file'] = file
-                        break
-                if 'raw_video_file' in torrent_info:
-                    break
         else:
             for individual_file in sorted(glob.glob(f"{torrent_info['upload_media']}/*")):
                 found = False  # this is used to break out of the double nested loop
@@ -306,6 +298,15 @@ def identify_type_and_basic_info(full_path):
                             break
                     if found:
                         break
+
+        if '.boxset.' in args.path.lower():
+            for _, _, files in os.walk(torrent_info['upload_media']):
+                for file in files:
+                    if (file.endswith('.mkv') or file.endswith('.mp4')) and 'sample' not in file.lower():
+                        torrent_info['raw_video_file'] = file
+                        break
+                if 'raw_video_file' in torrent_info:
+                    break
 
         if 'raw_video_file' not in torrent_info:
             logging.critical(f"The folder {torrent_info['upload_media']} does not contain any video files")
