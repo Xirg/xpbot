@@ -123,10 +123,13 @@ parser.add_argument('-sticky', action='store_true', help="(Internal) Pin the new
 
 args = parser.parse_args()
 
+#defaults to always anon
 if not args.anon:
     args.anon=True
 
 # Import 'auto_mode' status
+# if -auto is not supplied check if set in the config if
+# if -auto then set auto_mode to true
 if args.auto is False:
     if str(os.getenv('auto_mode')).lower() not in ['true', 'false']:
         logging.critical('auto_mode is not set to true/false in config.env')
@@ -838,7 +841,7 @@ def identify_miscellaneous_details():
         torrent_info["repack"] = match_repack.group()
         logging.info(f'Used Regex to extract: [bold]{match_repack.group()}[/bold] from the filename')
 
-    # repacks
+    # language
     match_language = re.search(r'NORDiC|DANiSH', torrent_info["raw_file_name"], re.IGNORECASE)
     if match_language is not None:
         torrent_info["language"] = match_language.group()
@@ -1966,10 +1969,14 @@ for file in upload_queue:
 
             # Now open up the correct files and format all the bbcode/tags below
             with open(torrent_info["bbcode_images"], 'r') as bbcode, open(f'{working_folder}/temp_upload/description.txt', 'a') as description:
-              
+
+                description.write(f'{bbcode_line_break}[center] ---------------------- [size=22]Screenshots[/size] ---------------------- {bbcode_line_break}{bbcode_line_break}')
+
                 # Now write in the actual screenshot bbcode
                 for line in bbcode:
                     description.write(line)
+
+                description.write(f'[/center]')
 
             # Add the finished file to the 'torrent_info' dict
             torrent_info["description"] = f'{working_folder}/temp_upload/description.txt'
@@ -2040,6 +2047,9 @@ for file in upload_queue:
                 for dot_torrent_file in list_dot_torrent_files:
                     # Move each .torrent file we find into the directory the user specified
                     # shutil.copy(dot_torrent_file, move_locations["torrent"])
+
+                    # instead of copying the torrentfile use the downloaded one.
+                    # and to some fast resuming later
                     torrent_file=dot_torrent_file
 
             # Media files are moved instead of copied so we need to make sure they don't already exist in the path the user provides
@@ -2051,6 +2061,7 @@ for file in upload_queue:
                     logging.info(f"Moved {torrent_info['upload_media']} to {move_location_value}")
                     shutil.move(torrent_info["upload_media"], move_location_value)
 
+    #need to do documentation on how to download and patch fast_resume 
     new_torrent_file = re.escape(os.path.basename(torrent_file))
     torrent_file = re.escape(torrent_file)
     os.system("~/bin/rtorrent_fast_resume.pl " + move_locations["media"] + " < " + torrent_file + " > " + move_locations["torrent"] + "/" + new_torrent_file)
