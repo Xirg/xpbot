@@ -4,36 +4,8 @@ Automatically parse, rename, and upload torrents to trackers using the UNIT3D co
 <table>
     <tbody>
     <tr style="text-align: left">
-        <td><strong>ACM</strong></td>
-        <td><strong><a href="https://asiancinema.me">AsianCinema</a></strong></td>
-    </tr>
-    <tr style="text-align: left">
-        <td><strong>ATH</strong></td>
-        <td><strong><a href="https://aither.cc">Aither</a></strong></td>
-    </tr>
-    <tr style="text-align: left">
-        <td><strong>BHD</strong></td>
-        <td><strong><a href="https://beyond-hd.me">Beyond-HD</a></strong></td>
-    </tr>
-    <tr style="text-align: left">
-        <td><strong>BLU</strong></td>
-        <td><strong><a href="https://blutopia.xyz">Blutopia</a></strong></td>
-    </tr>
-    <tr style="text-align: left">
-        <td><strong>R4E</strong></td>
-        <td><strong><a href="https://racing4everyone.eu">Racing4Everyone</a></strong></td>
-    </tr>
-    <tr style="text-align: left">
-        <td><strong>Telly</strong></td>
-        <td><strong><a href="https://telly.wtf">Telly.wtf</a></strong></td>
-    </tr>
-    <tr style="text-align: left">
-        <td><strong>Ntelogo</strong></td>
-        <td><strong><a href="https://ntelogo.org">Ntelogo</a></strong></td>
-    </tr>
-    <tr style="text-align: left">
-        <td><strong>UFHD</strong></td>
-        <td><strong><a href="https://uncutflixhd.com/">Uncutflixhd</a></strong></td>
+        <td><strong>DBy</strong></td>
+        <td><strong><a href="https://danishbytes.club">DanishBytes</a></strong></td>
     </tr>
     </tbody>
 </table>
