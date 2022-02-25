@@ -53,13 +53,15 @@ function log () {
 
 while true
 do
-    for directory in $watchfolder/*; do
-        if [ -d "$directory" ]; then
-            # Will not run if no directories are available
-            log "running for $directory"
-            python3 $uploadscript -p $directory -auto
-        fi
-    done
+  for directory in $watchfolder/*; do
+    if [ -d "$directory" ]; then
+      if [[ "$directory" != *failed-* ]]; then
+        # Will not run if no directories are available
+        log "running for $directory"
+        python3 $uploadscript -p $directory -auto
+      fi
+    fi
+  done
 done
 
 rm -f "$pid_file"

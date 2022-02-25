@@ -301,8 +301,8 @@ def identify_type_and_basic_info(full_path):
                             break
                     if found:
                         break
-
-        if '.boxset.' in args.path.lower():
+        
+        if '.boxset.' in str(torrent_info["upload_media"]).lower():
             for _, _, files in os.walk(torrent_info['upload_media']):
                 for file in files:
                     if (file.endswith('.mkv') or file.endswith('.mp4')) and 'sample' not in file.lower():
@@ -489,6 +489,8 @@ def analyze_video_file(missing_value):
 
         else:
             # shit
+            failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+            shutil.move(torrent_info["upload_media"],failed_path)
             quit_log_reason(reason="auto_mode is enabled & we can't auto detect the source (e.g. bluray, webdl, dvd, etc). Upload form requires the Source")
 
     # ---------------- Video Resolution ---------------- #
@@ -516,6 +518,8 @@ def analyze_video_file(missing_value):
                 return str(screen_size_input)
 
             # If we don't have the resolution we can't upload this media since all trackers require the resolution in the upload form
+            failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+            shutil.move(torrent_info["upload_media"],failed_path)
             quit_log_reason(reason="Resolution not in filename, and we can't extract it using pymediainfo. Upload form requires the Resolution")
 
     # ---------------- Audio Channels ---------------- #
@@ -591,6 +595,8 @@ def analyze_video_file(missing_value):
 
         # Well shit, if nothing above returned any value then it looks like this is the end of our journey :(
         # Exit the script now
+        failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+        shutil.move(torrent_info["upload_media"],failed_path)
         quit_log_reason(reason="Audio_Channels are not in the filename, and we can't extract it using regex or ffprobe. force_auto_upload=false so we quit now")
 
     # ---------------- Audio Codec ---------------- #
@@ -697,6 +703,8 @@ def analyze_video_file(missing_value):
 
         # Well shit, if nothing above returned any value then it looks like this is the end of our journey :(
         # Exit the script now
+        failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+        shutil.move(torrent_info["upload_media"],failed_path)        
         quit_log_reason(reason="Could not detect audio_codec via regex, pymediainfo, & ffprobe. force_auto_upload=false so we quit now")
 
     # ---------------- Video Codec ---------------- #
@@ -774,6 +782,15 @@ def identify_miscellaneous_details():
     # ------ Specific Source info ------ #
 
     if "source_type" not in torrent_info:
+        conversions = {
+            "bluray_disc": 14,
+            "bluray_remux": 2,
+            "bluray_encode": 3,
+            "webdl": 4,
+            "webrip": 5,
+            "dvd": 1,
+            "hdtv": 6
+        }
         match_source = re.search(r'(?P<bluray_remux>.*blu(.ray|ray).*remux.*)|'
                                 r'(?P<bluray_disc>.*blu(.ray|ray)((?!x(264|265)|h.(265|264)).)*$)|'
                                 r'(?P<webrip>.*web(.rip|rip).*)|'
@@ -786,6 +803,7 @@ def identify_miscellaneous_details():
                 if match_source.group(source_type) is not None:
                     # add it directly to the torrent_info dict
                     torrent_info["source_type"] = source_type
+                    torrent_info["type_id"] = conversions[source_type]
 
 
         # Well firstly if we got this far with auto_mode enabled that means we've somehow figured out the 'parent' source but now can't figure out its 'final form'
@@ -826,7 +844,7 @@ def identify_miscellaneous_details():
     # ------ WEB streaming service stuff here ------ #
     if torrent_info["source"] == "Web":
         # You can add more streaming platforms here, just append the sites 'tag' to the regex below (Case sensitive)
-        match_web_source = re.search(r'NF|AMZN|iT|ATVP|DSNP|HULU|VUDU|HMAX|iP|CBS|ESPN|STAN|STARZ|NBC|PCOK', torrent_info["raw_file_name"])
+        match_web_source = re.search(r'VP|NF|AMZN|iT|ATVP|DSNP|HULU|VUDU|HMAX|iP|CBS|ESPN|STAN|STARZ|NBC|PCOK', torrent_info["raw_file_name"])
         if match_web_source is not None:
             torrent_info["web_source"] = match_web_source.group()
             logging.info(f'Used Regex to extract the WEB Source: {match_web_source.group()}')
@@ -1333,6 +1351,10 @@ def choose_right_tracker_keys():
             logging.critical('Unable to find a suitable "source" match for this file')
             logging.error("Its possible that the media you are trying to upload is not allowed on site (e.g. DVDRip to BLU is not allowed")
             console.print(f'\nThis "Type" ([bold]{torrent_info["source"]}[/bold]) or this "Resolution" ([bold]{torrent_info["screen_size"]}[/bold]) is not allowed on this tracker', style='Red underline', highlight=False)
+            
+            failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+            shutil.move(torrent_info["upload_media"],failed_path)
+
             sys.exit()
 
         return target_val
@@ -1461,12 +1483,23 @@ def upload_to_site(upload_to, tracker_api_key):
     files = []
     display_files = {}
 
-# Category
-    keywords = {30: [".boxset"],2: [".remux"],1: [".brdisk", ".br-disk"],19: [".4k", ".uhd", ".2160p"],4: [".webdl", ".web-dl"],5: [".webrip", ".web-rip"],3: [".encode"],6: [".hdtv"],23: [".3d"]}
+#Category
+    keywords = {
+        30: [".boxset"],
+        14: [".bluray"],
+        2: [".remux"],
+        1: [".brdisk", ".br-disk"],
+        19: [".4k", ".uhd", ".2160p"],
+        4: [".webdl", ".web-dl"],
+        5: [".webrip", ".web-rip"],
+        3: [".encode"],
+        6: [".hdtv"],
+        23: [".3d"]
+    }
     parse_me = torrent_info["raw_video_file"] if "raw_video_file" in torrent_info else torrent_info["upload_media"]
     for key in keywords:
         for word in keywords[key]:
-            # Check if our keyword is in the title of our upload
+                # Check if our keyword is in the title of our upload
             if word in parse_me.lower():
                 tracker_settings['type_id'] = key
                 # Go out of the loop if it found a keyword
@@ -1477,7 +1510,7 @@ def upload_to_site(upload_to, tracker_api_key):
     lang = []
     subs = []
     srt_shorts = {'en': 'gb','sv': 'se','da': 'dk'}
-    languages = {'eng': 'gb','spa': 'es','dan': 'dk','nor': 'no','ger': 'de','swe': 'se','jap': 'jp','fin': 'fi','ita': 'it','nld': 'nl', 'kor': 'kr', 'isl', 'is', 'rus': 'ru'}
+    languages = {'eng': 'gb','spa': 'es','dan': 'dk','nor': 'no','ger': 'de','swe': 'se','jap': 'jp','fin': 'fi','ita': 'it','nld': 'nl', 'kor': 'kr', 'isl': 'is', 'rus': 'ru'}
     try:
         for _, _, fls in os.walk(torrent_info["upload_media"]):
             for file in fls:
@@ -1971,13 +2004,13 @@ for file in upload_queue:
             # Now open up the correct files and format all the bbcode/tags below
             with open(torrent_info["bbcode_images"], 'r') as bbcode, open(f'{working_folder}/temp_upload/description.txt', 'a') as description:
 
-                description.write(f'{bbcode_line_break}[center] ---------------------- [size=22]Screenshots[/size] ---------------------- {bbcode_line_break}{bbcode_line_break}')
+                #description.write(f'{bbcode_line_break}[center] ---------------------- [size=22]Screenshots[/size] ---------------------- {bbcode_line_break}{bbcode_line_break}')
 
                 # Now write in the actual screenshot bbcode
                 for line in bbcode:
                     description.write(line)
 
-                description.write(f'[/center]')
+                #description.write(f'[/center]')
 
             # Add the finished file to the 'torrent_info' dict
             torrent_info["description"] = f'{working_folder}/temp_upload/description.txt'
