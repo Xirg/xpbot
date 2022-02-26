@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import time
+import distutils
 from pathlib import Path
 
 # These packages need to be installed
@@ -123,9 +124,17 @@ parser.add_argument('-sticky', action='store_true', help="(Internal) Pin the new
 
 args = parser.parse_args()
 
-#defaults to always anon
-if not args.anon:
-    args.anon=True
+# Import 'anon' status
+# if -anon is not supplied check if set in the config if
+# if -anon then set anon to true
+if args.anon is False:
+    if str(os.getenv('anonymous')).lower() not in ['true', 'false']:
+        logging.critical('anonymous is not set to true/false in config.env')
+        raise AssertionError("set 'anonymous' equal to true/false in config.env")
+    args.anon = bool(distutils.util.strtobool(str(os.getenv('anonymous')).lower()))
+    
+else:
+    args.anon = "true"
 
 # Import 'auto_mode' status
 # if -auto is not supplied check if set in the config if
