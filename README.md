@@ -7,9 +7,40 @@ Automatically parse, rename, and upload torrents to trackers using the UNIT3D co
         <td><strong>DBy</strong></td>
         <td><strong><a href="https://danishbytes.club">DanishBytes</a></strong></td>
     </tr>
+    <tr style="text-align: left">
+        <td><strong>ACM</strong></td>
+        <td><strong><a href="https://asiancinema.me">AsianCinema</a></strong></td>
+    </tr>
+    <tr style="text-align: left">
+        <td><strong>ATH</strong></td>
+        <td><strong><a href="https://aither.cc">Aither</a></strong></td>
+    </tr>
+    <tr style="text-align: left">
+        <td><strong>BHD</strong></td>
+        <td><strong><a href="https://beyond-hd.me">Beyond-HD</a></strong></td>
+    </tr>
+    <tr style="text-align: left">
+        <td><strong>BLU</strong></td>
+        <td><strong><a href="https://blutopia.xyz">Blutopia</a></strong></td>
+    </tr>
+    <tr style="text-align: left">
+        <td><strong>R4E</strong></td>
+        <td><strong><a href="https://racing4everyone.eu">Racing4Everyone</a></strong></td>
+    </tr>
+    <tr style="text-align: left">
+        <td><strong>Telly</strong></td>
+        <td><strong><a href="https://telly.wtf">Telly.wtf</a></strong></td>
+    </tr>
+    <tr style="text-align: left">
+        <td><strong>Ntelogo</strong></td>
+        <td><strong><a href="https://ntelogo.org">Ntelogo</a></strong></td>
+    </tr>
+    <tr style="text-align: left">
+        <td><strong>UFHD</strong></td>
+        <td><strong><a href="https://uncutflixhd.com/">Uncutflixhd</a></strong></td>
+    </tr>
     </tbody>
 </table>
-
 
 <!-- Basic setup -->
 # Basic setup:
@@ -20,8 +51,9 @@ Automatically parse, rename, and upload torrents to trackers using the UNIT3D co
 5. Ensure you have [mediainfo](https://mediaarea.net/en/MediaInfo/Download/Ubuntu) & [ffmpeg](https://ffmpeg.org/download.html) installed on your system
 6. Run the script using [Python3](https://www.python.org/downloads/) (If you're having issues or torf isn't installing, try python3.9)
 7. Remember to make both auto_upload.py and autoupload.sh executeable by doing the following
-   ```chmod +x auto_upload.py```
-   ```chmod +x autoupload.sh```
+
+   ```chmod u+x auto_upload.py```
+   ```chmod u+x autoupload.sh```
    
    <br /> 
    
