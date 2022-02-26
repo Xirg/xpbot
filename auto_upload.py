@@ -132,7 +132,6 @@ if args.anon is False:
         logging.critical('anonymous is not set to true/false in config.env')
         raise AssertionError("set 'anonymous' equal to true/false in config.env")
     args.anon = bool(distutils.util.strtobool(str(os.getenv('anonymous')).lower()))
-    
 else:
     args.anon = "true"
 
