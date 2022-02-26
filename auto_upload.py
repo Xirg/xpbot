@@ -380,7 +380,7 @@ def identify_type_and_basic_info(full_path):
 
 def analyze_video_file(missing_value):
     # console.print(f"\nTrying to identify the [bold][green]{missing_value}[/green][/bold]...")
-
+    foldername = str(args.title[0])
     # ffprobe/mediainfo need to access to video file not folder, set that here using the 'parse_me' variable
     parse_me = torrent_info["raw_video_file"] if "raw_video_file" in torrent_info else torrent_info["upload_media"]
     media_info = MediaInfo.parse(parse_me)
@@ -489,7 +489,7 @@ def analyze_video_file(missing_value):
 
         else:
             # shit
-            failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+            failed_path = torrent_info["upload_media"].replace(foldername, "failed-" + foldername)
             shutil.move(torrent_info["upload_media"],failed_path)
             quit_log_reason(reason="auto_mode is enabled & we can't auto detect the source (e.g. bluray, webdl, dvd, etc). Upload form requires the Source")
 
@@ -518,7 +518,7 @@ def analyze_video_file(missing_value):
                 return str(screen_size_input)
 
             # If we don't have the resolution we can't upload this media since all trackers require the resolution in the upload form
-            failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+            failed_path = torrent_info["upload_media"].replace(foldername, "failed-" + foldername)
             shutil.move(torrent_info["upload_media"],failed_path)
             quit_log_reason(reason="Resolution not in filename, and we can't extract it using pymediainfo. Upload form requires the Resolution")
 
@@ -595,7 +595,7 @@ def analyze_video_file(missing_value):
 
         # Well shit, if nothing above returned any value then it looks like this is the end of our journey :(
         # Exit the script now
-        failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+        failed_path = torrent_info["upload_media"].replace(foldername, "failed-" + foldername)
         shutil.move(torrent_info["upload_media"],failed_path)
         quit_log_reason(reason="Audio_Channels are not in the filename, and we can't extract it using regex or ffprobe. force_auto_upload=false so we quit now")
 
@@ -681,8 +681,9 @@ def analyze_video_file(missing_value):
                 audio_info = json.loads(audio_info_probe[0].decode('utf-8'))
 
                 for stream in audio_info["streams"]:
-                    logging.info(f'Used ffprobe to identify the audio codec: {stream["profile"]}')
-                    return stream["profile"]
+                    if 'profile' in stream:
+                        logging.info(f'Used ffprobe to identify the audio codec: {stream["profile"]}')
+                        return stream["profile"]
 
             if audio_codec in audio_codec_dict.keys():
                 # Now its a bit of a Hail Mary and we try to match whatever pymediainfo returned to our audio_codec_dict/translation
@@ -703,7 +704,7 @@ def analyze_video_file(missing_value):
 
         # Well shit, if nothing above returned any value then it looks like this is the end of our journey :(
         # Exit the script now
-        failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
+        failed_path = torrent_info["upload_media"].replace(foldername, "failed-" + foldername)
         shutil.move(torrent_info["upload_media"],failed_path)        
         quit_log_reason(reason="Could not detect audio_codec via regex, pymediainfo, & ffprobe. force_auto_upload=false so we quit now")
 
