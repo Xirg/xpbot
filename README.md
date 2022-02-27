@@ -65,7 +65,7 @@ Automatically parse, rename, and upload torrents to trackers using the UNIT3D co
     * run script using ```./auto_upload.py -t etc -p /path/to/file/autocompletes.now```
 3. A folder called ``temp_upload`` will be created which will store the files:
     * ```description.txt``` ```mediainfo.txt``` ```*.torrent```
-4. if you want to automaticly watch a folder for new uploads remeber to do the following
+4. if you want to automatically watch a folder for new uploads remember to do the following
     * add autoupload.sh to your crontab
     * ```* * * * * /path/to/autoupload.sh >/dev/null 2>&1```
     * change the following two path in autoupload.sh
