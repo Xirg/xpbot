@@ -310,18 +310,19 @@ def identify_type_and_basic_info(full_path):
             torrent_info["largest_playlist"] = largest_playlist
         else:
             for individual_file in sorted(glob.glob(f"{torrent_info['upload_media']}/**/*",recursive=True)):
-                found = False  # this is used to break out of the double nested loop
-                logging.info(f"Checking to see if {individual_file} is a video file")
-                if os.path.isfile(individual_file):
-                    file_info = MediaInfo.parse(individual_file)
-                    for track in file_info.tracks:
-                        if track.track_type == "Video":
-                            torrent_info["raw_video_file"] = f"{individual_file}"
-                            logging.info(f"Using {individual_file} for mediainfo tests")
-                            found = True
+                if 'sample.mkv' not in individual_file.lower():
+                    found = False  # this is used to break out of the double nested loop
+                    logging.info(f"Checking to see if {individual_file} is a video file")
+                    if os.path.isfile(individual_file):
+                        file_info = MediaInfo.parse(individual_file)
+                        for track in file_info.tracks:
+                            if track.track_type == "Video":
+                                torrent_info["raw_video_file"] = f"{individual_file}"
+                                logging.info(f"Using {individual_file} for mediainfo tests")
+                                found = True
+                                break
+                        if found:
                             break
-                    if found:
-                        break
 
         if 'raw_video_file' not in torrent_info:
             logging.critical(f"The folder {torrent_info['upload_media']} does not contain any video files")
@@ -1890,12 +1891,13 @@ for file in upload_queue:
                 logging.info('Perhaps first try "sudo apt-get install unrar" then run this script again')
                 continue  # Skip this entire 'file upload' & move onto the next (if exists)
         for individual_file in sorted(glob.glob(f"{file}/**/*.mkv",recursive=True)):
-            found = False  # this is used to break out of the double nested loop
-            logging.info(f"Checking to see if {individual_file} is a video file")
-            if os.path.isfile(individual_file):
-                found = True
-                torrent_info["full_path_videofile"]=individual_file
-                break
+            if 'sample.mkv' not in individual_file.lower():
+                found = False  # this is used to break out of the double nested loop
+                logging.info(f"Checking to see if {individual_file} is a video file")
+                if os.path.isfile(individual_file):
+                    found = True
+                    torrent_info["full_path_videofile"]=individual_file
+                    break
 
     else:
         torrent_info["full_path_videofile"] = file
