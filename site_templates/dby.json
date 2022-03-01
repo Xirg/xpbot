@@ -2,7 +2,7 @@
     "name": "Danishbytes",
     "url": "https://danishbytes.club/",
     "upload_form": "https://danishbytes.club/api/torrents/upload?api_token={api_key}",
-    "torrents_search": "https://danishbytes.club/api/torrents/filter?api_token={api_key}",
+    "search_url": "https://danishbytes.club/torrents/filter/?_token={api_key}",
     "source": "DANISH BYTES",
     "bbcode_line_break": "\n",
   
@@ -68,8 +68,8 @@
         },
         "2": {
           "remux": 1,
-          "bluray_remux": 2,
-          "dvd_remux": 2
+          "bluray_remux": 1,
+          "dvd_remux": 1
         },
         "3": {
           "bluray_encode": 1
@@ -82,6 +82,11 @@
         },
         "6": {
           "hdtv": 1
+        },
+        "7": {
+         "4k": 1,
+            "bluray_remux": 1,
+            "2160p": 2
         }
       },
   
@@ -139,7 +144,7 @@
   
     "dupes": {
       "request": "GET",
-      "url_format": "{search_url}&imdbId={imdb}",
+      "url_format": "{search_url}&imdb={imdb}",
   
       "parse_json": {
         "top_lvl": "torrents"
