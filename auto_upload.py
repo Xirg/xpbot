@@ -161,10 +161,15 @@ def delete_leftover_files():
             logging.info("deleted the contents of the folder: {}".format(working_folder + old_temp_data))
 
 def quit_log_reason(reason):
-    logging.critical(f"auto_mode is enabled (no user input) & we can not auto extract the {missing_value}")
+    failed_path = torrent_info["upload_media"].replace(torrent_info["failedname"], "failed-" + torrent_info["failedname"])
+    shutil.move(torrent_info["upload_media"],failed_path)
+    # post error to discord
+    if discord_url:
+        requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content=ERROR: **{reason}**')
+        requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content=ERROR: **Renamed release to {failed_path}**')
+    # log error
     logging.critical(f"Exit Reason: {reason}")
     # let the user know the error/issue
-    console.print(f"\nCritical error when trying to extract: {missing_value}", style='red bold')
     console.print(f"Exit Reason: {reason}")
     # and finally exit since this will affect all trackers we try and upload to, so it makes no sense to try the next tracker
     sys.exit()
@@ -233,10 +238,7 @@ def identify_type_and_basic_info(full_path):
                 torrent_info["s00e00"] = daily_episode_date
             else:
                 logging.critical("Could not detect Season or date (daily episode) so we can not upload this")
-                sys.exit(console.print(
-                    "\ncould not detect the 'season' or 'date' (daily episode) so we can not upload this.. quitting now\n",
-                    style="bold red"))
-
+                quit_log_reason(reason="could not detect the 'season' or 'date' (daily episode) so we can not upload this")
         else:
             # This else is for when we have a season number, so we can immediately assign it to the torrent_info dict
             torrent_info["season_number"] = int(guessit(full_path)["season"])
@@ -328,7 +330,6 @@ def identify_type_and_basic_info(full_path):
             logging.critical(f"The folder {torrent_info['upload_media']} does not contain any video files")
             console.print(f"The folder {torrent_info['upload_media']} does not contain any video files\n\n", style='bold red')
             return "skip_to_next_file"
-            # sys.exit(f"The folder {torrent_info['upload_media']} does not contain any video files")
 
         torrent_info["raw_file_name"] = os.path.basename(os.path.dirname(f"{full_path}/"))  # this is used to isolate the folder name
     else:
@@ -494,8 +495,6 @@ def analyze_video_file(missing_value):
 
         else:
             # shit
-            failed_path = torrent_info["upload_media"].replace(torrent_info["failedname"], "failed-" + torrent_info["failedname"])
-            shutil.move(torrent_info["upload_media"],failed_path)
             quit_log_reason(reason="auto_mode is enabled & we can't auto detect the source (e.g. bluray, webdl, dvd, etc). Upload form requires the Source")
 
     # ---------------- Video Resolution ---------------- #
@@ -523,8 +522,6 @@ def analyze_video_file(missing_value):
                 return str(screen_size_input)
 
             # If we don't have the resolution we can't upload this media since all trackers require the resolution in the upload form
-            failed_path = torrent_info["upload_media"].replace(torrent_info["failedname"], "failed-" + torrent_info["failedname"])
-            shutil.move(torrent_info["upload_media"],failed_path)
             quit_log_reason(reason="Resolution not in filename, and we can't extract it using pymediainfo. Upload form requires the Resolution")
 
     # ---------------- Audio Channels ---------------- #
@@ -600,8 +597,6 @@ def analyze_video_file(missing_value):
 
         # Well shit, if nothing above returned any value then it looks like this is the end of our journey :(
         # Exit the script now
-        failed_path = torrent_info["upload_media"].replace(torrent_info["failedname"], "failed-" + torrent_info["failedname"])
-        shutil.move(torrent_info["upload_media"],failed_path)
         quit_log_reason(reason="Audio_Channels are not in the filename, and we can't extract it using regex or ffprobe. force_auto_upload=false so we quit now")
 
     # ---------------- Audio Codec ---------------- #
@@ -709,8 +704,6 @@ def analyze_video_file(missing_value):
 
         # Well shit, if nothing above returned any value then it looks like this is the end of our journey :(
         # Exit the script now
-        failed_path = torrent_info["upload_media"].replace(torrent_info["failedname"], "failed-" + torrent_info["failedname"])
-        shutil.move(torrent_info["upload_media"],failed_path)        
         quit_log_reason(reason="Could not detect audio_codec via regex, pymediainfo, & ffprobe. force_auto_upload=false so we quit now")
 
     # ---------------- Video Codec ---------------- #
@@ -845,7 +838,7 @@ def identify_miscellaneous_details():
             console.print("\nCritical error when trying to extract: 'source_type' (more specific version of 'source', think bluray_remux & just bluray) ", style='red bold')
             console.print("Quitting now..")
             # and finally exit since this will affect all trackers we try and upload to, so it makes no sense to try the next tracker
-            sys.exit()
+            quit_log_reason(reason="Critical error when trying to extract: 'source_type' (more specific version of 'source', think bluray_remux & just bluray)")
 
     # ------ WEB streaming service stuff here ------ #
     if torrent_info["source"] == "Web":
@@ -984,7 +977,6 @@ def search_tmdb_for_id(query_title, year, content_type):
         if len(search_tmdb_request.json()["results"]) == 0:
             logging.critical(
                 "No results found on TMDB using the title '{}' and the year '{}'".format(query_title, year))
-            #sys.exit("No results found on TMDB, try running this script again but manually supply the tmdb or imdb ID")
             return "0"
             
 
@@ -1362,10 +1354,7 @@ def choose_right_tracker_keys():
             logging.error("Its possible that the media you are trying to upload is not allowed on site (e.g. DVDRip to BLU is not allowed")
             console.print(f'\nThis "Type" ([bold]{torrent_info["source"]}[/bold]) or this "Resolution" ([bold]{torrent_info["screen_size"]}[/bold]) is not allowed on this tracker', style='Red underline', highlight=False)
             
-            failed_path = torrent_info["upload_media"].replace(torrent_info["torrent_title"], "failed-" + torrent_info["torrent_title"])
-            shutil.move(torrent_info["upload_media"],failed_path)
-
-            sys.exit()
+            quit_log_reason(reason="Unable to find a suitable sourcematch for this file")
 
         return target_val
 
@@ -1696,6 +1685,7 @@ def upload_to_site(upload_to, tracker_api_key):
         console.print('Upload failed', style='bold red')
         logging.critical(f"404 was returned on that upload, this is a problem with the site ({tracker})")
         logging.error("Upload failed")
+        quit_log_reason(reason=f"404 was returned on that upload, this is a problem with the site ({tracker}) the ERROR was: {response.text}")
 
     elif response.status_code == 500:
         console.print(f'[bold]HTTP response status code: [red]{response.status_code}[/red][/bold]')
@@ -1966,6 +1956,7 @@ for file in upload_queue:
         result=search_tmdb_for_id(query_title=torrent_info["title"], year=torrent_info["year"] if "year" in torrent_info else "",
                                   content_type=torrent_info["type"])
         if result == "0":
+            logging.info("We are missing both the 'TMDB' & 'IMDB' ID, trying to identify it via nfo file")
             for i, line in enumerate(open(torrent_info["nfo_file"], encoding="latin-1")):
                 if re.search(r"\btt[0-9]*", line):
                     match = re.search(r"\btt[0-9]*", line)
@@ -1976,7 +1967,7 @@ for file in upload_queue:
                 torrent_info['tmdb'] = get_external_id(id_site='imdb', id_value=match.group(),
                                                        content_type=torrent_info["type"])
             else:
-                sys.exit("No results found on TMDB, try running this script again but manually supply the tmdb or imdb ID")
+                quit_log_reason(reason="No results found on TMDB, try running this script again but manually supply the tmdb or imdb ID")
 
 
     # Update discord channel
@@ -2072,9 +2063,8 @@ for file in upload_queue:
 
                 # If dupe was found & the script is auto_mode OR if the user responds with 'n' for the 'dupe found, continue?' prompt
                 #  we will essentially stop the current 'for loops' iteration & jump back to the beginning to start next cycle (if exists else quits)
-                failed_path = torrent_info["upload_media"].replace(torrent_info["failedname"], "failed-" + torrent_info["failedname"] + "-DUPE")
-                shutil.move(torrent_info["upload_media"],failed_path)
-                quit_log_reason(reason="auto_mode is enabled & we can't auto detect the source (e.g. bluray, webdl, dvd, etc). Upload form requires the Source")
+                torrent_info["failedname"] = torrent_info["failedname"] + "-DUPE"
+                quit_log_reason(reason="Dupe detected")
 
 
         # -------- Generate .torrent file --------
