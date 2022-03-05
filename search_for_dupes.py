@@ -21,7 +21,7 @@ logging.basicConfig(filename=f'{working_folder}/upload_script.log',
                     format='%(asctime)s | %(name)s | %(levelname)s | %(message)s')
 
 
-def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api):
+def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode):
     with open(f'{working_folder}/site_templates/{search_site}.json', "r", encoding="utf-8") as config_file:
         # with open(working_folder + "/site_templates/{}.json".format(search_site), "r", encoding="utf-8") as config_file:
         config = json.load(config_file)
@@ -60,7 +60,11 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api):
             torrent_details = item
 
         torrent_title = str(torrent_details["name"])
-        torrent_title_split = torrent_title.replace("-", " ").lower().split(' ')
+        # todo replace this ungly hack
+        torrent_title_split = torrent_title.replace(".", " ").lower()
+        torrent_title_split = torrent_title_split.replace("-", " ")
+        torrent_title_split = torrent_title_split.replace("dd5 1", "dd5.1")
+        torrent_title_split = torrent_title_split.replace("h 264", "h.264").lower().split(' ')
 
 
         # Bluray Encode
@@ -254,7 +258,8 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api):
     if max_dupe_percentage_exceeded:
         console.print(f"\n\n[bold red on white] :warning: Detected possible dupe! :warning: [/bold red on white]")
         console.print(possible_dupes_table)
-        return True if bool(util.strtobool(os.getenv('auto_mode'))) else not bool(Confirm.ask("\nContinue upload even with possible dupe?"))
+
+        return True if auto_mode == 'true' else not bool(Confirm.ask("\nContinue upload even with possible dupe?"))
     else:
         console.print(f":heavy_check_mark: Yay! No dupes found on [bold]{str(config['source']).upper()}[/bold], continuing the upload process now\n")
         return False
