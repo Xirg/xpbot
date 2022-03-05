@@ -46,11 +46,18 @@ Automatically parse, rename, and upload torrents to trackers using the UNIT3D co
 # Basic setup:
 1. Clone / download this repository
 2. Install necessary packages ```pip3 install -r requirements.txt```
-3. Rename `config.env.sample` to `config.env`
-4. Fill out the required values in `config.env`
-5. Ensure you have [mediainfo](https://mediaarea.net/en/MediaInfo/Download/Ubuntu) & [ffmpeg](https://ffmpeg.org/download.html) installed on your system
-6. Run the script using [Python3](https://www.python.org/downloads/) (If you're having issues or torf isn't installing, try python3.9)
-7. Remember to make both auto_upload.py and autoupload.sh executeable by doing the following
+3. install patch for fast resuming of torrents in rtorrent
+   look here for more information https://github.com/rakshasa/rtorrent/issues/489
+   ```chmod u+x patch_fast_resume.sh```
+   ```sudo ./patch_fast_resume.sh```
+   make rtorrent_fast_resume.pl executable
+   ```chmod u+x rtorrent_fast_resume.pl```
+   
+4. Rename `config.env.sample` to `config.env`
+5. Fill out the required values in `config.env`
+6. Ensure you have [mediainfo](https://mediaarea.net/en/MediaInfo/Download/Ubuntu) & [ffmpeg](https://ffmpeg.org/download.html) installed on your system
+7. Run the script using [Python3](https://www.python.org/downloads/) (If you're having issues or torf isn't installing, try python3.9)
+8. Remember to make both auto_upload.py and autoupload.sh executeable by doing the following
 
    ```chmod u+x auto_upload.py```
    ```chmod u+x autoupload.sh```
@@ -62,15 +69,12 @@ Automatically parse, rename, and upload torrents to trackers using the UNIT3D co
 2. If you're trying to pass in a file as an arg, you may find autocomplete isn't working. Do this to fix it
     * (What I mean by autocomplete is when you double hit *Tab*, and the filename/folder gets automatically filled in)
     * ```chmod u+x auto_upload.py```
-    * run script using ```./auto_upload.py -t etc -p /path/to/file/autocompletes.now```
+    * run script using ```./auto_upload.py -t etc -p /path/to/release```
 3. A folder called ``temp_upload`` will be created which will store the files:
     * ```description.txt``` ```mediainfo.txt``` ```*.torrent```
-4. if you want to automatically watch a folder for new uploads remember to do the following
-    * add autoupload.sh to your crontab
+4. if you want to automatically watch a folder for new uploads remember to add autoupload.sh to your crontab
     * ```* * * * * /path/to/autoupload.sh >/dev/null 2>&1```
-    * change the following two path in autoupload.sh
-      watchfolder="/path/to/new/upload/no_trailing_slash"
-      uploadscript="/path/to/auto_upload.py"
+    * change the media_watch_location in config.env to the folder you will be watching for new releases
     * move new uploads into the watchfolder directory
     
    

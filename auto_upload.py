@@ -2135,7 +2135,7 @@ for file in upload_queue:
     #need to do documentation on how to download and patch fast_resume 
     new_torrent_file = re.escape(os.path.basename(torrent_file))
     torrent_file = re.escape(torrent_file)
-    os.system("~/bin/rtorrent_fast_resume.pl " + move_locations["media"] + " < " + torrent_file + " > " + move_locations["torrent"] + "/" + new_torrent_file)
+    os.system(working_folder + "/rtorrent_fast_resume.pl " + move_locations["media"] + " < " + torrent_file + " > " + move_locations["torrent"] + "/" + new_torrent_file)
 
                 # Torrent Info
     torrent_info_table = Table(show_header=True, header_style="bold cyan")
