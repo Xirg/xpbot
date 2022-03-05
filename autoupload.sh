@@ -1,14 +1,25 @@
 #!/bin/bash
 
 ## add this script to crontab for auto upload of releases added to a specified directory
+## 
 ## remember to do a chmod +x autoupload.sh
 ## Run with -v for the world smallest debug 
 ##
 ## * * * * * /path/to/autoupload.sh >/dev/null 2>&1
 ##
 
-watchfolder="/path/to/new/upload/no_trailing_slash"
-uploadscript="/path/to/auto_upload.py"
+
+# load the media_watch_location from config.env
+export $(grep '^media_watch_location' config.env | xargs -d '\n')
+if [ -z $media_watch_location ]; then
+  echo "media_watch_location not set in config.env"
+  exit 1
+fi
+
+# find location of this script and locate the auto_upload.py in same diretory
+script_path=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+uploadscript="$script_path/auto_upload.py"
+
 pid_file="/tmp/autoupload.pid"
 
 
@@ -20,6 +31,7 @@ do
        ;;
   esac
 done
+
 
 trap 'rm -f "$pid_file"; exit 0' SIGINT SIGTERM
 
@@ -53,7 +65,7 @@ function log () {
 
 while true
 do
-  for directory in $watchfolder/*; do
+  for directory in $media_watch_location/*; do
     if [ -d "$directory" ]; then
       if [[ "$directory" != *failed-* ]]; then
         # Will not run if no directories are available
