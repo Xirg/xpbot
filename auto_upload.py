@@ -395,7 +395,6 @@ def identify_type_and_basic_info(full_path):
 
 def analyze_video_file(missing_value):
     # console.print(f"\nTrying to identify the [bold][green]{missing_value}[/green][/bold]...")
-    torrent_info["failedname"] = str(args.title[0])
     # ffprobe/mediainfo need to access to video file not folder, set that here using the 'parse_me' variable
     parse_me = torrent_info["raw_video_file"] if "raw_video_file" in torrent_info else torrent_info["upload_media"]
     media_info = MediaInfo.parse(parse_me)
@@ -546,14 +545,17 @@ def analyze_video_file(missing_value):
                     return possible_audio_channels
 
         # If the regex failed ^^ (Likely) then we use ffprobe to try and auto detect the channels
-        audio_info_probe = FFprobe(
-            inputs={parse_me: None},
-            global_options=[
-                '-v', 'quiet',
-                '-print_format', 'json',
-                '-select_streams a:0',
-                '-show_format', '-show_streams']
-        ).run(stdout=subprocess.PIPE)
+        if parse_me.endswith('.mkv') or parse_me.endswith('.mp4') or parse_me.endswith('.mov'):
+            audio_info_probe = FFprobe(
+                inputs={parse_me: None},
+                global_options=[
+                    '-v', 'quiet',
+                    '-print_format', 'json',
+                    '-select_streams a:0',
+                    '-show_format', '-show_streams']
+            ).run(stdout=subprocess.PIPE)
+        else:
+            quit_log_reason(reason="no video file for use in FFprobe")
 
         audio_info = json.loads(audio_info_probe[0].decode('utf-8'))
         for stream in audio_info["streams"]:
@@ -670,16 +672,19 @@ def analyze_video_file(missing_value):
                     return str(match_dts_audio.group()).upper().replace(".", " ").strip()
 
                 # If the regex failed we can try ffprobe
-                audio_info_probe = FFprobe(
-                    inputs={parse_me: None},
-                    global_options=[
-                        '-v', 'quiet',
-                        '-print_format', 'json',
-                        '-select_streams a:0',
-                        '-show_format', '-show_streams']
-                ).run(stdout=subprocess.PIPE)
-                audio_info = json.loads(audio_info_probe[0].decode('utf-8'))
-
+                if parse_me.endswith('.mkv') or parse_me.endswith('.mp4') or parse_me.endswith('.mov'):
+                    audio_info_probe = FFprobe(
+                        inputs={parse_me: None},
+                        global_options=[
+                            '-v', 'quiet',
+                            '-print_format', 'json',
+                            '-select_streams a:0',
+                            '-show_format', '-show_streams']
+                    ).run(stdout=subprocess.PIPE)
+                    audio_info = json.loads(audio_info_probe[0].decode('utf-8'))
+                else:
+                    quit_log_reason(reason="no video file for use in FFprobe")
+                    
                 for stream in audio_info["streams"]:
                     if 'profile' in stream:
                         logging.info(f'Used ffprobe to identify the audio codec: {stream["profile"]}')
@@ -803,7 +808,6 @@ def identify_miscellaneous_details():
                     # add it directly to the torrent_info dict
                     torrent_info["source_type"] = source_type
                     torrent_info["type_id"] = conversions[source_type]
-
 
         # Well firstly if we got this far with auto_mode enabled that means we've somehow figured out the 'parent' source but now can't figure out its 'final form'
         # If auto_mode is disabled we can prompt the user
@@ -1844,6 +1848,8 @@ for file in upload_queue:
     delete_leftover_files()
     torrent_info.clear()
 
+    torrent_info["failedname"] = str(args.title[0])
+
     # File we're uploading
     console.print(f'Uploading: [bold][blue]{file}[/blue][/bold]')
 
@@ -1851,7 +1857,7 @@ for file in upload_queue:
     if os.path.isdir(file):
         # Set the 'upload_media' right away, if we end up extracting from a rar archive we will just overwriting it with the .mkv we extracted
         torrent_info["upload_media"] = file
-        
+
         # Now we check to see if the dir contains rar files
         rar_file = glob.glob(f"{os.path.join(file, '')}*rar")
         if rar_file:
@@ -1864,15 +1870,7 @@ for file in upload_queue:
                 logging.info("Found 'unrar' system package, Using it to extract the video file now")
 
                 # run the system package unrar and save the extracted file to its parent dir
-                subprocess.run([unrar_sys_package, 'e', rar_file[0], file])
-
-                # This is how we identify which file we just extracted (Last modified)
-                list_of_files = glob.glob(f"{os.path.join(file, '')}*")
-                latest_file = max(list_of_files, key=os.path.getctime)
-
-                # Overwrite the value for 'upload_media' with the path to the video file we just extracted
-                torrent_info["upload_media"] = latest_file
-
+                subprocess.run([unrar_sys_package, 'e', '-y', rar_file[0], file])
 
             # If the user doesn't have unrar installed then we let them know here and move on to the next file (if exists)
             else:
@@ -1880,7 +1878,7 @@ for file in upload_queue:
                 logging.critical('"unrar" is not installed, Unable to extract rar archive')
                 logging.info('Perhaps first try "sudo apt-get install unrar" then run this script again')
                 continue  # Skip this entire 'file upload' & move onto the next (if exists)
-        for individual_file in sorted(glob.glob(f"{file}/**/*.mkv",recursive=True)):
+        for individual_file in sorted(glob.glob(f"{file}/**/*.[m][kpo][v4v]",recursive=True)):
             if 'sample.mkv' not in individual_file.lower():
                 found = False  # this is used to break out of the double nested loop
                 logging.info(f"Checking to see if {individual_file} is a video file")
@@ -1888,6 +1886,9 @@ for file in upload_queue:
                     found = True
                     torrent_info["full_path_videofile"]=individual_file
                     break
+                    
+        if not 'full_path_videofile' in torrent_info:
+            quit_log_reason(reason="No mkv file found")
 
     else:
         torrent_info["full_path_videofile"] = file
@@ -2035,7 +2036,7 @@ for file in upload_queue:
             with open(torrent_info["bbcode_images"], 'r') as bbcode, open(f'{working_folder}/temp_upload/description.txt', 'a') as description:
 
                 #description.write(f'{bbcode_line_break}[center] ---------------------- [size=22]Screenshots[/size] ---------------------- {bbcode_line_break}{bbcode_line_break}')
-
+                
                 # Now write in the actual screenshot bbcode
                 for line in bbcode:
                     description.write(line)
