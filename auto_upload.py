@@ -165,8 +165,7 @@ def quit_log_reason(reason):
     shutil.move(torrent_info["upload_media"],failed_path)
     # post error to discord
     if discord_url:
-        requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content=ERROR: **{reason}**')
-        requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content=ERROR: **Renamed release to {failed_path}**')
+        requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content=ERROR: **{reason}**\nERROR: **Renamed release to {failed_path}**')
     # log error
     logging.critical(f"Exit Reason: {reason}")
     # let the user know the error/issue
@@ -494,7 +493,7 @@ def analyze_video_file(missing_value):
 
         else:
             # shit
-            quit_log_reason(reason="auto_mode is enabled & we can't auto detect the source (e.g. bluray, webdl, dvd, etc). Upload form requires the Source")
+            quit_log_reason(reason="auto_mode is enabled and we can't auto detect the source (e.g. bluray, webdl, dvd, etc). Upload form requires the Source")
 
     # ---------------- Video Resolution ---------------- #
     if missing_value == "screen_size":
@@ -793,7 +792,9 @@ def identify_miscellaneous_details():
             "webdl": 4,
             "webrip": 5,
             "dvd": 1,
-            "hdtv": 6
+            "hdtv": 6,
+            "brrip": 3,
+            "hdrip": 3
         }
         match_source = re.search(r'(?P<bluray_remux>.*blu(.ray|ray).*remux.*)|'
                                 r'(?P<bluray_disc>.*blu(.ray|ray)((?!x(264|265)|h.(265|264)).)*$)|'
@@ -801,9 +802,11 @@ def identify_miscellaneous_details():
                                 r'(?P<webdl>.*web(.dl|dl|).*)|'
                                 r'(?P<bluray_encode>.*blu(.ray|ray).*|x(264|265)|h.(265|264))|'
                                 r'(?P<dvd>HD(.DVD|DVD)|.*DVD.*)|'
+                                r'(?P<brrip>.*BRRIP.*)|'
+                                r'(?P<hdrip>.*HDRIP.*)|'
                                 r'(?P<hdtv>.*HDTV.*)', torrent_info["raw_file_name"], re.IGNORECASE)
         if match_source is not None:
-            for source_type in ["bluray_disc", "bluray_remux", "bluray_encode", "webdl", "webrip", "dvd", "hdtv"]:
+            for source_type in ["bluray_disc", "bluray_remux", "bluray_encode", "webdl", "webrip", "dvd", "hdtv","brrip","hdrip"]:
                 if match_source.group(source_type) is not None:
                     # add it directly to the torrent_info dict
                     torrent_info["source_type"] = source_type
@@ -1358,7 +1361,7 @@ def choose_right_tracker_keys():
             logging.error("Its possible that the media you are trying to upload is not allowed on site (e.g. DVDRip to BLU is not allowed")
             console.print(f'\nThis "Type" ([bold]{torrent_info["source"]}[/bold]) or this "Resolution" ([bold]{torrent_info["screen_size"]}[/bold]) is not allowed on this tracker', style='Red underline', highlight=False)
             
-            quit_log_reason(reason="Unable to find a suitable sourcematch for this file")
+            #quit_log_reason(reason="Unable to find a suitable sourcematch for this file")
 
         return target_val
 
@@ -1495,7 +1498,7 @@ def upload_to_site(upload_to, tracker_api_key):
         19: [".4k", ".uhd", ".2160p"],
         4: [".webdl", ".web-dl"],
         5: [".webrip", ".web-rip"],
-        3: [".encode"],
+        3: [".encode",".hdrip",".brrip"],
         6: [".hdtv"],
         23: [".3d"]
     }
@@ -1513,7 +1516,7 @@ def upload_to_site(upload_to, tracker_api_key):
     lang = []
     subs = []
     srt_shorts = {'en': 'gb','sv': 'se','da': 'dk'}
-    languages = {'eng': 'gb','spa': 'es','dan': 'dk','nor': 'no','ger': 'de','swe': 'se','jap': 'jp','fin': 'fi','ita': 'it','nld': 'nl', 'kor': 'kr', 'isl': 'is', 'rus': 'ru'}
+    languages = {'eng': 'gb','spa': 'es','dan': 'dk','nor': 'no','ger': 'de','swe': 'se','jap': 'jp','fin': 'fi','ita': 'it','nld': 'nl', 'kor': 'kr', 'isl': 'is', 'rus': 'ru', 'fre': 'fr', 'ara': 'ae', 'man': 'cn' }
     try:
         for _, _, fls in os.walk(torrent_info["upload_media"]):
             for file in fls:
@@ -1909,7 +1912,7 @@ for file in upload_queue:
 
     # Update discord channel
     if discord_url:
-        requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content=Uploading: **{torrent_info["upload_media"]}**')
+        requests.request("POST", discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content=Uploading: **{torrent_info["failedname"]}**')
 
     # -------- add .nfo if exists --------
     if args.nfo:
@@ -1956,14 +1959,17 @@ for file in upload_queue:
         logging.info("We are missing both the 'TMDB' & 'IMDB' ID, trying to identify it via title & year")
         result=search_tmdb_for_id(query_title=torrent_info["title"], year=torrent_info["year"] if "year" in torrent_info else "",
                                   content_type=torrent_info["type"])
+        found=False  
         if result == "0":
             logging.info("We are missing both the 'TMDB' & 'IMDB' ID, trying to identify it via nfo file")
             for i, line in enumerate(open(torrent_info["nfo_file"], encoding="latin-1")):
                 if re.search(r"\btt[0-9]*", line):
                     match = re.search(r"\btt[0-9]*", line)
+                    found=True
                     break
-            
-            if match.group():
+                
+
+            if found:
                 torrent_info['imdb'] = match.group()
                 torrent_info['tmdb'] = get_external_id(id_site='imdb', id_value=match.group(),
                                                        content_type=torrent_info["type"])
@@ -2053,18 +2059,11 @@ for file in upload_queue:
             console.rule(f"Dupe Check [bold]({tracker})[/bold]", style='red', align='center')
 
             # Call the function that will search each site for dupes and return a similarity percentage, if it exceeds what the user sets in config.env we skip the upload
-            dupe_response = search_for_dupes_api(acronym_to_tracker[str(tracker).lower()], torrent_info["imdb"], torrent_info=torrent_info, tracker_api=temp_tracker_api_key, auto_mode=auto_mode)
+            dupe_response = search_for_dupes_api(acronym_to_tracker[str(tracker).lower()], torrent_info["imdb"], torrent_info["tmdb"], torrent_info=torrent_info, tracker_api=temp_tracker_api_key, auto_mode=auto_mode)
             # True == dupe_found
             # False == no_dupes/continue upload
             if dupe_response:
                 logging.error(f"Could not upload to: {tracker} because we found a dupe onsite")
-                # Send discord notification if enabled
-                if discord_url:
-                    requests.post(url=discord_url, headers={'Content-Type': 'application/x-www-form-urlencoded'}, data=f'content='f'Dupe check failed, upload to **{str(tracker).upper()}** canceled')
-
-                # If dupe was found & the script is auto_mode OR if the user responds with 'n' for the 'dupe found, continue?' prompt
-                #  we will essentially stop the current 'for loops' iteration & jump back to the beginning to start next cycle (if exists else quits)
-
                 quit_log_reason(reason="Dupe detected")
 
 

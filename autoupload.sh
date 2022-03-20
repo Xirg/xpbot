@@ -70,7 +70,7 @@ do
       if [[ "$directory" != *failed-* ]]; then
         # Will not run if no directories are available
         log "running for $directory"
-        python3 $uploadscript -p $directory -auto
+        python3 $uploadscript -p "$directory" -auto
       fi
     fi
   done

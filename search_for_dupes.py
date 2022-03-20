@@ -21,7 +21,7 @@ logging.basicConfig(filename=f'{working_folder}/upload_script.log',
                     format='%(asctime)s | %(name)s | %(levelname)s | %(message)s')
 
 
-def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode):
+def search_for_dupes_api(search_site, imdb, tmdb, torrent_info, tracker_api, auto_mode):
     with open(f'{working_folder}/site_templates/{search_site}.json', "r", encoding="utf-8") as config_file:
         # with open(working_folder + "/site_templates/{}.json".format(search_site), "r", encoding="utf-8") as config_file:
         config = json.load(config_file)
@@ -29,11 +29,17 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode
     if str(config["dupes"]["request"]) == "POST":
         # POST request (BHD)
         url_dupe_search = str(config["torrents_search"]).format(api_key=tracker_api)
-        url_dupe_payload = {'action': 'search', config["translation"]["imdb"]: imdb}
+        if str(config["dupes"]["searchtype"]) == "imdb":
+            url_dupe_payload = {'action': 'search', config["translation"]["imdb"]: imdb}
+        if str(config["dupes"]["searchtype"]) == "tmdb":
+            url_dupe_payload = {'action': 'search', config["translation"]["tmdb"]: tmdb}
         dupe_check_response = requests.post(url=url_dupe_search, data=url_dupe_payload)
     else:
         # GET request (BLU & ACM)
-        url_dupe_search = str(config["dupes"]["url_format"]).format(search_url=str(config["torrents_search"]).format(api_key=tracker_api), imdb=imdb[2:])
+        if str(config["dupes"]["searchtype"]) == "imdb":
+            url_dupe_search = str(config["dupes"]["url_format"]).format(search_url=str(config["torrents_search"]).format(api_key=tracker_api), imdb=imdb[2:])
+        if str(config["dupes"]["searchtype"]) == "tmdb":
+            url_dupe_search = str(config["dupes"]["url_format"]).format(search_url=str(config["torrents_search"]).format(api_key=tracker_api), tmdb=tmdb)
         url_dupe_payload = None  # this is here just for the log, its not technically needed
         dupe_check_response = requests.get(url=url_dupe_search)
 
@@ -43,6 +49,7 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode
     if dupe_check_response.status_code != 200:
         logging.error(f"{search_site} returned the status code: {dupe_check_response.status_code}")
         logging.error(f"Dupe check for {search_site} failed, assuming no dupes and continuing upload")
+        console.print(f"Dupe check for {search_site} failed, assuming no dupes and continuing upload")
         return False
 
     # Now that we have the response from tracker(X) we can parse the json and try to identify dupes
@@ -76,7 +83,7 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode
             existing_release_types[torrent_title] = 'bluray_remux'
 
         # WEB-DL
-        if all(x in torrent_title_split for x in ['web', 'dl']) and any(x in torrent_title_split for x in ['h.264', 'h264', 'h.265', 'h265', 'hevc']):
+        if any(x in torrent_title_split for x in ['web', 'dl']) and any(x in torrent_title_split for x in ['h.264', 'h264', 'h.265', 'h265', 'hevc']):
             existing_release_types[torrent_title] = "webdl"
 
         # WEBRip
@@ -103,6 +110,7 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode
     # If we get no matches when searching via IMDB ID that means this content hasn't been upload in any format, no possibility for dupes
     if len(existing_release_types.keys()) == 0:
         logging.info(msg='Dupe query did not return any releases that we could parse, assuming no dupes exist.')
+        console.print('Dupe query did not return any releases that we could parse, assuming no dupes exist.')
         return False
 
 
@@ -140,6 +148,7 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode
 
         # Loop through the results & discard everything that is not from the correct season
         number_of_discarded_seasons = 0
+
         for existing_release_types_key in list(existing_release_types.keys()):
 
             if season_num not in existing_release_types_key:  # filter our wrong seasons
@@ -147,10 +156,9 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode
                 number_of_discarded_seasons += 1
                 continue
 
-
             # at this point we've filtered out all the different resolutions/types/seasons
             #  so now we check each remaining title to see if its a season pack or individual episode
-            extracted_season_episode_from_title = list(filter(lambda x: x.startswith(season_num), existing_release_types_key.split(" ")))[0]
+            extracted_season_episode_from_title = list(filter(lambda x: x.startswith(season_num), re.split('-|\.| ',existing_release_types_key)))[0]
             if len(extracted_season_episode_from_title) == 3:
                 logging.info(msg=f'Found a season pack for {season_num} on {search_site}')
                 # TODO maybe mark the season pack as a 100% dupe or consider expanding dupe Table to allow for error messages to inform the user
@@ -261,5 +269,6 @@ def search_for_dupes_api(search_site, imdb, torrent_info, tracker_api, auto_mode
 
         return True if auto_mode == 'true' else not bool(Confirm.ask("\nContinue upload even with possible dupe?"))
     else:
+        console.print(possible_dupes_table)
         console.print(f":heavy_check_mark: Yay! No dupes found on [bold]{str(config['source']).upper()}[/bold], continuing the upload process now\n")
         return False
