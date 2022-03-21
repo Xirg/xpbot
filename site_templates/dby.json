@@ -72,9 +72,7 @@
         "dvd_remux": 1
       },
       "3": {
-        "bluray_encode": 1,
-        "hdrip": 1,
-        "brrip": 1
+        "bluray_encode": 1
       },
       "4": {
         "webdl": 1
@@ -87,6 +85,7 @@
       },
       "7": {
        "4k": 1,
+          "bluray_remux": 1,
           "2160p": 2
       }
     },
@@ -145,7 +144,8 @@
 
   "dupes": {
     "request": "GET",
-    "url_format": "{search_url}&imdb={imdb}",
+    "url_format": "{search_url}&tmdb={tmdb}",
+    "searchtype": "tmdb",
 
     "parse_json": {
       "top_lvl": "torrents"
